@@ -18,6 +18,7 @@ use local_ip_address;
 pub struct P2PMessenger {
     peer_name: String,
     peer_id: String,
+    tcp_port: u16,
     discovery: DiscoveryService,
     peer_manager: PeerManager,
     event_manager: EventManager,
@@ -34,11 +35,17 @@ impl P2PMessenger {
         let event_manager = EventManager::new();
         let event_sender = event_manager.get_sender();
         
-        let peer_manager = PeerManager::new(tcp_port, event_sender);
+        let peer_manager = PeerManager::new(
+            event_sender,
+            discovery.peer_id.clone(),
+            peer_name.clone(),
+            tcp_port,
+        );
         
         Ok(Self {
             peer_id: discovery.peer_id.clone(),
             peer_name,
+            tcp_port,
             discovery,
             peer_manager,
             event_manager,
@@ -47,7 +54,7 @@ impl P2PMessenger {
 
     pub async fn start(&self) -> P2PResult<()> {
         self.discovery.start().await?;
-        self.peer_manager.start_listening().await?;
+        self.peer_manager.start_listening(self.tcp_port).await?;
         Ok(())
     }
 

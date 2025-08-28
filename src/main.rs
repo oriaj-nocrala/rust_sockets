@@ -254,14 +254,20 @@ async fn handle_event(event: P2PEvent, messenger: &P2PMessenger) {
         P2PEvent::PeerDiscovered(peer) => {
             println!("\n🔍 Peer discovered: {} ({}:{}) ID:{:.8}...", 
                 peer.name, peer.ip, peer.port, peer.id);
+            print!("Choose option: ");
+            io::stdout().flush().unwrap();
         }
         P2PEvent::PeerConnected(peer) => {
             println!("\n🔗 Peer connected: {} ({}:{}) ID:{:.8}...", 
                 peer.name, peer.ip, peer.port, peer.id);
+            print!("Choose option: ");
+            io::stdout().flush().unwrap();
         }
         P2PEvent::PeerDisconnected(peer) => {
             println!("\n💔 Peer disconnected: {} ({}:{}) ID:{:.8}...", 
                 peer.name, peer.ip, peer.port, peer.id);
+            print!("Choose option: ");
+            io::stdout().flush().unwrap();
         }
         P2PEvent::MessageReceived(message) => {
             let timestamp = format!("{}s", message.timestamp % 86400); // Simple seconds format
@@ -270,6 +276,8 @@ async fn handle_event(event: P2PEvent, messenger: &P2PMessenger) {
                 match &content.content {
                     Some(message_content::Content::Text(text_msg)) => {
                         println!("\n💬 [{}] {}: {}", timestamp, message.sender_name, text_msg.text);
+                        print!("Choose option: ");
+                        io::stdout().flush().unwrap();
                     }
                     Some(message_content::Content::File(file_msg)) => {
                         let size_kb = file_msg.data.len() / 1024;
@@ -277,14 +285,20 @@ async fn handle_event(event: P2PEvent, messenger: &P2PMessenger) {
                             Ok(path) => {
                                 println!("\n📁 [{}] File from {}: {} ({} KB) -> {}", 
                                     timestamp, message.sender_name, file_msg.filename, size_kb, path);
+                                print!("Choose option: ");
+                                io::stdout().flush().unwrap();
                             }
                             Err(e) => {
                                 println!("\n❌ Failed to save file {}: {}", file_msg.filename, e);
+                                print!("Choose option: ");
+                                io::stdout().flush().unwrap();
                             }
                         }
                     }
                     _ => {
                         println!("\n📨 [{}] Unknown message type from {}", timestamp, message.sender_name);
+                        print!("Choose option: ");
+                        io::stdout().flush().unwrap();
                     }
                 }
             }

@@ -18,6 +18,7 @@ message MessageContent {
     FileMessage file = 2;
     FileRequest file_request = 3;
     FileResponse file_response = 4;
+    HandshakeMessage handshake = 5;
   }
 }
 
@@ -42,6 +43,13 @@ message FileRequest {
 message FileResponse {
   string filename = 1;
   bool accepted = 2;
+}
+
+// Handshake message for peer identification
+message HandshakeMessage {
+  string peer_id = 1;
+  string peer_name = 2;
+  uint32 tcp_port = 3;
 }
 
 // Peer information

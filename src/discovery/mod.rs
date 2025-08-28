@@ -79,7 +79,7 @@ impl DiscoveryService {
         let peer_id = self.peer_id.clone();
         let peer_name = self.peer_name.clone();
         let tcp_port = self.tcp_port;
-        let discovery_port = self.discovery_port;
+        let _discovery_port = self.discovery_port;
         let is_running = self.is_running.clone();
 
         tokio::spawn(async move {
@@ -102,8 +102,13 @@ impl DiscoveryService {
 
                 let mut buf = Vec::new();
                 if announce.encode(&mut buf).is_ok() {
-                    let addr = format!("{}:{}", BROADCAST_ADDR, discovery_port);
-                    let _ = socket.send_to(&buf, &addr);
+                    // Broadcast to multiple discovery ports for same-PC testing
+                    let discovery_ports = [6968, 6970, 6972, 6974, 6976, 6978];
+                    
+                    for port in discovery_ports {
+                        let addr = format!("{}:{}", BROADCAST_ADDR, port);
+                        let _ = socket.send_to(&buf, &addr);
+                    }
                 }
             }
         });
@@ -142,8 +147,14 @@ impl DiscoveryService {
         };
         let mut buf = Vec::new();
         request.encode(&mut buf)?;
-        let addr = format!("{}:{}", BROADCAST_ADDR, self.discovery_port);
-        self.socket.send_to(&buf, &addr)?;
+        
+        // Broadcast peer requests to multiple discovery ports
+        let discovery_ports = [6968, 6970, 6972, 6974, 6976, 6978];
+        
+        for port in discovery_ports {
+            let addr = format!("{}:{}", BROADCAST_ADDR, port);
+            let _ = self.socket.send_to(&buf, &addr);
+        }
         Ok(())
     }
 
