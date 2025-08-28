@@ -1,167 +1,297 @@
-use bincode::error::EncodeError;
-use bincode;
-use std::{error, fs};
-use std::io::{self, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use archsockrust::{P2PMessenger, P2PEvent, MessageContent};
+use std::env;
+use std::io::{self, Write};
+use tokio::time::{sleep, Duration};
 
-#[derive(Debug, bincode::Encode, bincode::Decode)]
-struct Mensaje{
-    tipo: Tipo,
-    filename: Option<String>,
-    mensaje: Vec<u8>
-}
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("🦀 ArchSockRust CLI - P2P Messenger Testing Tool");
+    println!("===============================================");
 
-#[derive(Debug, bincode::Encode, bincode::Decode)]
-enum Tipo{
-    Texto,
-    Archivo
-}
+    // Check for CLI args
+    let args: Vec<String> = env::args().collect();
+    let name = if args.len() > 1 {
+        args[1].clone()
+    } else {
+        print!("Enter your name: ");
+        io::stdout().flush()?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        input.trim().to_string()
+    };
 
-// impl Display for Tipo{
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self{
-//             Self::Texto => write!(f, "0"),
-//             Self::Archivo => write!(f, "1"),
-//         }
-//     }
-// }
+    let mut messenger = P2PMessenger::new(name)?;
+    println!("✅ Created messenger with ID: {}", messenger.peer_id());
+    println!("📡 Local IP: {}", messenger.get_local_ip());
+    println!("🔍 Discovery port: 6968, TCP port: 6969");
 
-impl Mensaje{
-    fn try_to_bytes(&self) -> Result<Vec<u8>, EncodeError> {
-        return bincode::encode_to_vec(self, bincode::config::standard());
-    }
-}
+    messenger.start().await?;
+    println!("🚀 Messenger started! Auto-discovering peers every 5s...");
 
-
-
-fn handle_client(stream: &mut TcpStream) -> Result<(), Box<dyn error::Error>> {
-    println!("Cliente conectadini");
-    let mut size_bytes = [0; 8];
-
-    stream.read_exact(&mut size_bytes)?;
-    let size = usize::from_be_bytes(size_bytes);
-
-    println!("Esperando recibir {} bytes...", size);
+    let mut event_receiver = messenger.get_event_receiver().unwrap();
     
-    let mut received = vec![0; size];
-    stream.read_exact(&mut received)?;
-    println!("Recibidos {}", received.len());
+    let messenger_clone = std::sync::Arc::new(messenger);
+    let messenger_for_events = messenger_clone.clone();
 
-    let decoded: Mensaje = bincode::decode_from_slice(&received, bincode::config::standard()).unwrap().0;
-    match decoded.tipo{
-        Tipo::Texto => {
-            println!("Mensaje recibido: {}", String::from_utf8(decoded.mensaje)?);
+    // Event handler task
+    tokio::spawn(async move {
+        while let Some(event) = event_receiver.recv().await {
+            handle_event(event, &messenger_for_events).await;
         }
-        Tipo::Archivo => {
-            let dir = "recibidos";
-            println!("{}{}",std::env::current_dir()?.to_string_lossy(), "/recibidos");
-            if !fs::metadata(dir).is_ok(){
-                _ = fs::create_dir(dir)?;
-            }
-            let path = format!("{}/{}", dir, decoded.filename.unwrap());
-            let mut buffer = fs::File::create_new(&path)?;
-            _ = buffer.flush();
-            match buffer.write(&decoded.mensaje){
-                Ok(sz) => {
-                    println!("Escritos {}", sz);
-                },
-                Err(e) => { println!("Error: {}", e)}
-            };
-            // println!("Escritos {}", sz?)
+    });
+
+    // Auto-discovery task
+    let messenger_for_discovery = messenger_clone.clone();
+    tokio::spawn(async move {
+        loop {
+            let _ = messenger_for_discovery.discover_peers();
+            messenger_for_discovery.cleanup_stale_peers();
+            sleep(Duration::from_secs(5)).await;
+        }
+    });
+
+    // Main CLI loop
+    loop {
+        print_menu();
+        let choice = read_input("Choose option: ");
+
+        match choice.trim() {
+            "1" => list_discovered_peers(&messenger_clone),
+            "2" => list_connected_peers(&messenger_clone).await,
+            "3" => connect_to_peer(&messenger_clone).await,
+            "4" => send_message(&messenger_clone).await,
+            "5" => send_file(&messenger_clone).await,
+            "6" => disconnect_peer(&messenger_clone).await,
+            "7" => show_status(&messenger_clone).await,
+            "8" => force_discovery(&messenger_clone),
+            "h" | "help" => show_help(),
+            "0" | "q" | "quit" => break,
+            _ => println!("❌ Invalid option. Type 'h' for help."),
         }
     }
+
+    messenger_clone.stop().await;
+    println!("👋 Goodbye!");
     Ok(())
-
 }
 
-fn read_console_int() -> Result<i32, Box<dyn error::Error>>{
-    let _ = io::Write::flush(&mut io::stdout());
-    let mut buffer = String::new();
-    io::stdin().read_line(&mut buffer)?;
-    let res: i32 = buffer.trim().parse()?;
-    Ok(res)
+fn print_menu() {
+    println!("\n📋 Menu:");
+    println!("1. List discovered peers     5. Send file");
+    println!("2. List connected peers      6. Disconnect from peer");
+    println!("3. Connect to peer           7. Show status");
+    println!("4. Send text message         8. Force discovery");
+    println!("h. Help                      0/q. Exit");
 }
 
-fn main() -> std::io::Result<()> {
-    let local_ip = local_ip_address::local_ip().unwrap().to_string(); // Obtener la IP local
-    println!("La ip local es: {}", local_ip);
+fn show_help() {
+    println!("\n🆘 Help:");
+    println!("This CLI tool helps test the ArchSockRust P2P library.");
+    println!("\n🔧 Commands:");
+    println!("• Start with a name: cargo run -- \"Your Name\"");
+    println!("• Discovery runs automatically every 5 seconds");
+    println!("• Connect to peers before sending messages");
+    println!("• Files are saved to 'recibidos/' directory");
+    println!("\n🌐 Network:");
+    println!("• UDP Discovery: port 6968 (broadcast)");
+    println!("• TCP Messages: port 6969 (direct P2P)");
+    println!("• Works on local network without internet");
+}
+
+async fn show_status(messenger: &P2PMessenger) {
+    let discovered = messenger.get_discovered_peers();
+    let connected = messenger.get_connected_peers().await;
     
-    print!("Enviar (0) o recibir (1)? 0,1: ");
-    let val: i32 = read_console_int().expect("No es un numero");
+    println!("\n📊 Status:");
+    println!("• Name: {}", messenger.peer_name());
+    println!("• ID: {}", messenger.peer_id());
+    println!("• Local IP: {}", messenger.get_local_ip());
+    println!("• Discovered peers: {}", discovered.len());
+    println!("• Connected peers: {}", connected.len());
+}
 
-    match val{
-        0 => {
-            print!("Ingrese la direccion IP: ");
-            let _ = io::Write::flush(&mut io::stdout());
-            let mut addr = String::new();
-            io::stdin().read_line(&mut addr)?;
-            let addr = addr.trim();
-            if let Ok(mut stream) = TcpStream::connect(format!("{}:6969",addr)){
-                println!("Conectadini");
-                print!("Eviar mensaje(0) o Enviar archivo (1): ");
-                let val: i32 = read_console_int().expect("No es un numero");
+fn force_discovery(messenger: &P2PMessenger) {
+    match messenger.discover_peers() {
+        Ok(_) => println!("🔍 Discovery broadcast sent!"),
+        Err(e) => println!("❌ Discovery failed: {}", e),
+    }
+}
 
-                match val{
-                    0 => {
-                        print!("Ingrese mensaje: ");
-                        let _ = io::Write::flush(&mut io::stdout());
-                        let mut msg = String::new();
-                        io::stdin().read_line(&mut msg)?;
-                        let msg: Mensaje = Mensaje{ tipo: Tipo::Texto, filename: None, mensaje: msg.into_bytes() };
-                        let archivo_bytes: &Vec<u8> = &msg.try_to_bytes().unwrap();
-                        let size = archivo_bytes.len();
-                        stream.write(&size.to_be_bytes())?;
-                        stream.flush()?;
-                        stream.write(archivo_bytes)?;
-                        stream.flush()?;
-                        println!("Enviando {} bytes", size);
-                    },
-                    1 => {
-                        print!("Nombre del archivo: ");
-                        let _ = io::Write::flush(&mut io::stdout());
-                        let mut msg = String::new();
-                        io::stdin().read_line(&mut msg)?;
-                        let msg = msg.trim();
-                        // dbg!("El archivo es: {}", &msg);
-                        if fs::metadata(&msg).is_ok(){
-                            match fs::read(&msg){
-                                Ok(file) => {
-                                    let msg: Mensaje = Mensaje{ tipo: Tipo::Archivo, filename: Some(msg.to_string()), mensaje: file };
-                                    let archivo_bytes: &Vec<u8> = &msg.try_to_bytes().unwrap();
-                                    let size = archivo_bytes.len();
-                                    stream.write(&size.to_be_bytes())?;
-                                    stream.flush()?;
-                                    stream.write(archivo_bytes)?;
-                                    stream.flush()?;
-                                    println!("Escritos {} bytes", size);
-                                },
-                                Err(e) => println!("Error: {}", e)
-                            }
-                        } else {
-                            println!("No se encontro el archivo");
+fn read_input(prompt: &str) -> String {
+    print!("{}", prompt);
+    io::stdout().flush().unwrap();
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    input
+}
+
+fn list_discovered_peers(messenger: &P2PMessenger) {
+    let peers = messenger.get_discovered_peers();
+    println!("\n🔍 Discovered peers ({}):", peers.len());
+    if peers.is_empty() {
+        println!("   No peers discovered yet...");
+        println!("   💡 Make sure other instances are running on the same network");
+    } else {
+        for (i, peer) in peers.iter().enumerate() {
+            println!("   {}. {} ({}:{}) - ID: {:.8}...", 
+                i + 1, peer.name, peer.ip, peer.port, peer.id);
+        }
+    }
+}
+
+async fn list_connected_peers(messenger: &P2PMessenger) {
+    let peers = messenger.get_connected_peers().await;
+    println!("\n🔗 Connected peers ({}):", peers.len());
+    if peers.is_empty() {
+        println!("   No peers connected");
+        println!("   💡 Use option 3 to connect to discovered peers");
+    } else {
+        for (i, peer) in peers.iter().enumerate() {
+            println!("   {}. {} ({}:{}) - ID: {:.8}...", 
+                i + 1, peer.name, peer.ip, peer.port, peer.id);
+        }
+    }
+}
+
+async fn connect_to_peer(messenger: &P2PMessenger) {
+    let peers = messenger.get_discovered_peers();
+    if peers.is_empty() {
+        println!("❌ No peers discovered yet");
+        return;
+    }
+
+    list_discovered_peers(messenger);
+    let choice = read_input("Select peer number to connect: ");
+    
+    if let Ok(index) = choice.trim().parse::<usize>() {
+        if index > 0 && index <= peers.len() {
+            let peer = &peers[index - 1];
+            match messenger.connect_to_peer(peer).await {
+                Ok(()) => println!("✅ Connecting to {}...", peer.name),
+                Err(e) => println!("❌ Failed to connect: {}", e),
+            }
+        } else {
+            println!("❌ Invalid peer number");
+        }
+    }
+}
+
+async fn send_message(messenger: &P2PMessenger) {
+    let peers = messenger.get_connected_peers().await;
+    if peers.is_empty() {
+        println!("❌ No peers connected");
+        return;
+    }
+
+    list_connected_peers(messenger).await;
+    let choice = read_input("Select peer number: ");
+    
+    if let Ok(index) = choice.trim().parse::<usize>() {
+        if index > 0 && index <= peers.len() {
+            let peer = &peers[index - 1];
+            let message = read_input("Enter message: ");
+            
+            match messenger.send_text_message(&peer.id, message.trim().to_string()).await {
+                Ok(()) => println!("✅ Message sent to {}", peer.name),
+                Err(e) => println!("❌ Failed to send message: {}", e),
+            }
+        }
+    }
+}
+
+async fn send_file(messenger: &P2PMessenger) {
+    let peers = messenger.get_connected_peers().await;
+    if peers.is_empty() {
+        println!("❌ No peers connected");
+        return;
+    }
+
+    list_connected_peers(messenger).await;
+    let choice = read_input("Select peer number: ");
+    
+    if let Ok(index) = choice.trim().parse::<usize>() {
+        if index > 0 && index <= peers.len() {
+            let peer = &peers[index - 1];
+            let file_path = read_input("Enter file path: ");
+            
+            match messenger.send_file(&peer.id, file_path.trim()).await {
+                Ok(()) => println!("✅ File sent to {}", peer.name),
+                Err(e) => println!("❌ Failed to send file: {}", e),
+            }
+        }
+    }
+}
+
+async fn disconnect_peer(messenger: &P2PMessenger) {
+    let peers = messenger.get_connected_peers().await;
+    if peers.is_empty() {
+        println!("❌ No peers connected");
+        return;
+    }
+
+    list_connected_peers(messenger).await;
+    let choice = read_input("Select peer number to disconnect: ");
+    
+    if let Ok(index) = choice.trim().parse::<usize>() {
+        if index > 0 && index <= peers.len() {
+            let peer = &peers[index - 1];
+            match messenger.disconnect_peer(&peer.id).await {
+                Ok(()) => println!("✅ Disconnected from {}", peer.name),
+                Err(e) => println!("❌ Failed to disconnect: {}", e),
+            }
+        }
+    }
+}
+
+async fn handle_event(event: P2PEvent, messenger: &P2PMessenger) {
+    match event {
+        P2PEvent::PeerDiscovered(peer) => {
+            println!("\n🔍 Peer discovered: {} ({}:{}) ID:{:.8}...", 
+                peer.name, peer.ip, peer.port, peer.id);
+        }
+        P2PEvent::PeerConnected(peer) => {
+            println!("\n🔗 Peer connected: {} ({}:{}) ID:{:.8}...", 
+                peer.name, peer.ip, peer.port, peer.id);
+        }
+        P2PEvent::PeerDisconnected(peer) => {
+            println!("\n💔 Peer disconnected: {} ({}:{}) ID:{:.8}...", 
+                peer.name, peer.ip, peer.port, peer.id);
+        }
+        P2PEvent::MessageReceived(message) => {
+            let timestamp = format!("{}s", message.timestamp % 86400); // Simple seconds format
+            
+            match &message.content {
+                MessageContent::Text { text } => {
+                    println!("\n💬 [{}] {}: {}", timestamp, message.sender_name, text);
+                }
+                MessageContent::File { filename, .. } => {
+                    let size_kb = message.size() / 1024;
+                    match messenger.save_received_file(&message) {
+                        Ok(path) => {
+                            println!("\n📁 [{}] File from {}: {} ({} KB) -> {}", 
+                                timestamp, message.sender_name, filename, size_kb, path);
                         }
-                    },
-                    _ => {
-                        println!("Valor invalido");
+                        Err(e) => {
+                            println!("\n❌ Failed to save file {}: {}", filename, e);
+                        }
                     }
                 }
-                
-
-                let _ = stream.flush();
-            } else {
-                println!(" ERROR CTM ");
+                _ => {}
             }
-        },
-        1 => {
-            println!("Escuchando en el puerto 6969");
-            let listener = TcpListener::bind("0.0.0.0:6969")?;
-    
-            // accept connections and process them serially
-            for stream in listener.incoming() {
-                let _ = handle_client(&mut stream?).unwrap_or_else(|e| println!("Error al recibir mensajito {}", e));
-            }
-        },
+        }
+        P2PEvent::FileTransferStarted { filename, size, .. } => {
+            let size_kb = size / 1024;
+            println!("\n📤 Sending file {} ({} KB)...", filename, size_kb);
+        }
+        P2PEvent::FileTransferCompleted { filename, .. } => {
+            println!("\n✅ File sent successfully: {}", filename);
+        }
+        P2PEvent::FileTransferFailed { filename, error, .. } => {
+            println!("\n❌ File transfer failed for {}: {}", filename, error);
+        }
+        P2PEvent::Error(error) => {
+            println!("\n❌ Library error: {}", error);
+        }
         _ => {}
     }
-    Ok(())
 }

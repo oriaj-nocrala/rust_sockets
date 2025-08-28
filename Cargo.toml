@@ -2,7 +2,22 @@
 name = "archsockrust"
 version = "0.1.0"
 edition = "2021"
+description = "Modern P2P messaging library for local networks"
+license = "MIT"
+authors = ["Your Name <your.email@example.com>"]
+
+[lib]
+name = "archsockrust"
+path = "src/lib.rs"
+
+[[bin]]
+name = "archsockrust-cli"
+path = "src/main.rs"
 
 [dependencies]
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
 bincode = "2.0.1"
+uuid = { version = "1.0", features = ["v4"] }
 local-ip-address = "0.6.3"
+thiserror = "1.0"
