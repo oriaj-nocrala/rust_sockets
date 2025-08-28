@@ -14,6 +14,10 @@ path = "src/lib.rs"
 name = "archsockrust-cli"
 path = "src/main.rs"
 
+[[bin]]
+name = "archsockrust-tui"
+path = "src/tui_main.rs"
+
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
 prost = "0.13"
@@ -21,6 +25,9 @@ prost-types = "0.13"
 uuid = { version = "1.0", features = ["v4"] }
 local-ip-address = "0.6.3"
 thiserror = "1.0"
+# TUI dependencies
+ratatui = "0.28"
+crossterm = "0.28"
 
 [build-dependencies]
 prost-build = "0.13"

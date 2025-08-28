@@ -3,6 +3,8 @@ pub mod events;
 pub mod peer;
 pub mod protocol;
 pub mod error;
+pub mod app;
+pub mod cli;
 
 use crate::discovery::DiscoveryService;
 use crate::events::EventManager;
