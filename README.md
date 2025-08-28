@@ -12,7 +12,7 @@ A modern peer-to-peer messaging library written in Rust for seamless local netwo
 ### 📡 **Modern Communication**
 - **Real-time Messaging**: Async event-driven architecture
 - **File Transfers**: Send any file type with progress tracking
-- **Type-safe Protocol**: Strong typing with serde serialization
+- **Cross-Language Protocol**: Protocol Buffers for universal compatibility
 - **Concurrent Connections**: Connect to multiple peers simultaneously
 
 ### 🛠️ **Developer Experience**
@@ -41,7 +41,7 @@ tokio = { version = "1.0", features = ["full"] }
 ### Basic Usage
 
 ```rust
-use archsockrust::{P2PMessenger, P2PEvent, MessageContent};
+use archsockrust::{P2PMessenger, P2PEvent, message_content};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,8 +62,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("Found peer: {}", peer.name);
                 }
                 P2PEvent::MessageReceived(message) => {
-                    if let MessageContent::Text { text } = message.content {
-                        println!("{}: {}", message.sender_name, text);
+                    if let Some(content) = &message.content {
+                        if let Some(message_content::Content::Text(text_msg)) = &content.content {
+                            println!("{}: {}", message.sender_name, text_msg.text);
+                        }
                     }
                 }
                 _ => {}
@@ -132,38 +134,62 @@ cargo run --release
 
 ### Core Components
 
-- **Discovery Service** (`src/discovery/`): UDP broadcast peer discovery on port 6968
-- **Peer Manager** (`src/peer/`): TCP connection management on port 6969
-- **Protocol Layer** (`src/protocol/`): Message serialization with bincode
+- **Discovery Service** (`src/discovery/`): UDP broadcast peer discovery (configurable port)
+- **Peer Manager** (`src/peer/`): TCP connection management (configurable port)
+- **Protocol Layer** (`src/protocol/`): Message serialization with Protocol Buffers
 - **Event System** (`src/events/`): Async event notifications
 - **Public API** (`src/lib.rs`): Clean library interface
 
 ### Network Protocol
 
-- **Discovery**: UDP broadcast on port 6968
-- **Messaging**: Direct TCP P2P on port 6969
-- **Serialization**: Efficient binary with bincode 2.0
-- **Message Format**: Size-prefixed with UUID, timestamp, and typed content
+- **Discovery**: UDP broadcast (default port 6968, configurable)
+- **Messaging**: Direct TCP P2P (default port 6969, configurable)
+- **Serialization**: Efficient binary with Protocol Buffers
+- **Message Format**: Size-prefixed with UUID, timestamp, and typed protobuf content
 
 ## 🔧 Technical Details
 
 - **Language**: Rust 2021 Edition
 - **Async Runtime**: Tokio for high-performance I/O
-- **Serialization**: Serde + Bincode for type-safe messaging
+- **Serialization**: Protocol Buffers with prost for cross-language compatibility
 - **Concurrency**: Tokio Mutex for async-safe operations
 - **Error Handling**: Comprehensive error types with thiserror
 - **ID System**: UUID v4 for unique peer identification
+- **Build System**: Native protobuf code generation via build.rs
 
 ## 📦 Dependencies
 
 - `tokio` - Async runtime
-- `serde` - Serialization framework
-- `bincode` - Binary serialization
+- `prost` - Protocol Buffers implementation
+- `prost-types` - Common protobuf types
 - `uuid` - Unique identifiers
 - `local-ip-address` - Network detection
 - `thiserror` - Error handling
 
+### Build Dependencies
+
+- `prost-build` - Protocol Buffers code generation
+- `protoc` - Protocol Buffers compiler (system dependency)
+
 ## 🚦 Getting Started for Developers
+
+### Prerequisites
+
+- Rust (latest stable)
+- Protocol Buffers compiler (`protoc`)
+
+```bash
+# Ubuntu/Debian
+sudo apt install protobuf-compiler
+
+# macOS
+brew install protobuf
+
+# Windows
+# Download from https://github.com/protocolbuffers/protobuf/releases
+```
+
+### Setup
 
 1. **Clone the repository**
    ```bash
@@ -176,24 +202,69 @@ cargo run --release
    # Terminal 1
    cargo run --release -- "Alice"
    
-   # Terminal 2 (different machine or same)
-   cargo run --release -- "Bob"
+   # Terminal 2 (different machine or same with different ports)
+   cargo run --release -- "Bob" 7000 7001
    ```
 
 3. **Watch them discover and connect automatically!**
 
-4. **Integrate into your project**
+4. **Test C# interoperability**
+   ```bash
+   # Terminal 1 - Rust
+   cargo run --release -- "RustPeer"
+   
+   # Terminal 2 - C#
+   cd examples/csharp
+   dotnet run -- "CSharpPeer"
+   ```
+
+5. **Integrate into your project**
    - Use the library API for your UI
    - Handle P2PEvent for real-time updates
    - Customize peer discovery and messaging
+   - Generate protobuf bindings for other languages
+
+## 🌐 Cross-Language Interoperability
+
+### C# Integration
+
+This library now supports **full C# interoperability** via Protocol Buffers:
+
+- ✅ **Shared Protocol**: Both Rust and C# use same `.proto` schemas
+- ✅ **Binary Compatible**: Native protobuf serialization works across languages  
+- ✅ **Complete Example**: Working C# application in `examples/csharp/`
+- ✅ **Real-time Communication**: C# peers can discover and communicate with Rust peers
+
+### Supported Languages
+
+Any language with Protocol Buffers support can interoperate:
+
+- **C#** - Full example provided
+- **Python** - Generate bindings with `protoc --python_out`
+- **Java** - Generate bindings with `protoc --java_out`
+- **Go** - Generate bindings with `protoc --go_out`
+- **JavaScript/TypeScript** - Generate bindings with `protoc --js_out`
+
+### Creating Language Bindings
+
+```bash
+# Generate C# bindings
+protoc --csharp_out=. proto/messages.proto proto/discovery.proto
+
+# Generate Python bindings  
+protoc --python_out=. proto/messages.proto proto/discovery.proto
+
+# Generate Java bindings
+protoc --java_out=. proto/messages.proto proto/discovery.proto
+```
 
 ## 🤝 Contributing
 
 Contributions welcome! This library is designed for:
-- Local network messaging apps
-- P2P file sharing tools
-- Distributed applications
-- Real-time collaboration software
+- **Local network messaging apps** - Chat applications for LANs
+- **P2P file sharing tools** - Direct file transfers without servers  
+- **Distributed applications** - Cross-language P2P networks
+- **Real-time collaboration software** - Multi-platform team tools
 
 ## 📄 License
 
