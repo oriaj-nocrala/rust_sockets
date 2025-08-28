@@ -1,5 +1,7 @@
 use crate::error::P2PResult;
-use crate::protocol::{discovery::*, PeerInfo};
+use crate::protocol::discovery::*;
+use crate::{PeerInfo, DiscoveryMessage, PeerAnnouncement, PeerRequest, discovery_message};
+use prost::Message;
 use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::{Arc, Mutex};
@@ -11,14 +13,15 @@ pub struct DiscoveryService {
     pub peer_id: String,
     peer_name: String,
     tcp_port: u16,
+    discovery_port: u16,
     socket: UdpSocket,
     peers: Arc<Mutex<HashMap<String, PeerInfo>>>,
     is_running: Arc<Mutex<bool>>,
 }
 
 impl DiscoveryService {
-    pub fn new(peer_name: String, tcp_port: u16) -> P2PResult<Self> {
-        let socket = UdpSocket::bind(format!("0.0.0.0:{}", DISCOVERY_PORT))?;
+    pub fn new(peer_name: String, tcp_port: u16, discovery_port: u16) -> P2PResult<Self> {
+        let socket = UdpSocket::bind(format!("0.0.0.0:{}", discovery_port))?;
         socket.set_broadcast(true)?;
         socket.set_nonblocking(true)?;
 
@@ -26,6 +29,7 @@ impl DiscoveryService {
             peer_id: Uuid::new_v4().to_string(),
             peer_name,
             tcp_port,
+            discovery_port,
             socket,
             peers: Arc::new(Mutex::new(HashMap::new())),
             is_running: Arc::new(Mutex::new(false)),
@@ -55,7 +59,7 @@ impl DiscoveryService {
 
                 match socket.recv_from(&mut buffer) {
                     Ok((size, src)) => {
-                        if let Ok(msg) = DiscoveryMessage::from_bytes(&buffer[..size]) {
+                        if let Ok(msg) = DiscoveryMessage::decode(&buffer[..size]) {
                             Self::handle_discovery_message(msg, src, &peers_clone);
                         }
                     }
@@ -75,6 +79,7 @@ impl DiscoveryService {
         let peer_id = self.peer_id.clone();
         let peer_name = self.peer_name.clone();
         let tcp_port = self.tcp_port;
+        let discovery_port = self.discovery_port;
         let is_running = self.is_running.clone();
 
         tokio::spawn(async move {
@@ -87,15 +92,18 @@ impl DiscoveryService {
                     break;
                 }
 
-                let announce = DiscoveryMessage::Announce {
-                    peer_name: peer_name.clone(),
-                    peer_id: peer_id.clone(),
-                    tcp_port,
+                let announce = DiscoveryMessage {
+                    message: Some(discovery_message::Message::Announce(PeerAnnouncement {
+                        peer_name: peer_name.clone(),
+                        peer_id: peer_id.clone(),
+                        tcp_port: tcp_port as u32,
+                    })),
                 };
 
-                if let Ok(data) = announce.to_bytes() {
-                    let addr = format!("{}:{}", BROADCAST_ADDR, DISCOVERY_PORT);
-                    let _ = socket.send_to(&data, &addr);
+                let mut buf = Vec::new();
+                if announce.encode(&mut buf).is_ok() {
+                    let addr = format!("{}:{}", BROADCAST_ADDR, discovery_port);
+                    let _ = socket.send_to(&buf, &addr);
                 }
             }
         });
@@ -106,18 +114,21 @@ impl DiscoveryService {
         src: SocketAddr,
         peers: &Arc<Mutex<HashMap<String, PeerInfo>>>,
     ) {
-        match msg {
-            DiscoveryMessage::Announce {
-                peer_name,
-                peer_id,
-                tcp_port,
-            } => {
-                let mut peers_map = peers.lock().unwrap();
-                let peer_info = PeerInfo::new(peer_name, src.ip().to_string(), tcp_port);
-                peers_map.insert(peer_id, peer_info);
-            }
-            DiscoveryMessage::Request => {}
+        if let Some(discovery_message::Message::Announce(announce)) = msg.message {
+            let mut peers_map = peers.lock().unwrap();
+            let peer_info = PeerInfo {
+                id: announce.peer_id.clone(),
+                name: announce.peer_name.clone(),
+                ip: src.ip().to_string(),
+                port: announce.tcp_port,
+                last_seen: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+            };
+            peers_map.insert(announce.peer_id.clone(), peer_info);
         }
+        // Handle Request case if needed in the future
     }
 
     pub fn get_peers(&self) -> Vec<PeerInfo> {
@@ -126,10 +137,13 @@ impl DiscoveryService {
     }
 
     pub fn request_peers(&self) -> P2PResult<()> {
-        let request = DiscoveryMessage::Request;
-        let data = request.to_bytes()?;
-        let addr = format!("{}:{}", BROADCAST_ADDR, DISCOVERY_PORT);
-        self.socket.send_to(&data, &addr)?;
+        let request = DiscoveryMessage {
+            message: Some(discovery_message::Message::Request(PeerRequest {})),
+        };
+        let mut buf = Vec::new();
+        request.encode(&mut buf)?;
+        let addr = format!("{}:{}", BROADCAST_ADDR, self.discovery_port);
+        self.socket.send_to(&buf, &addr)?;
         Ok(())
     }
 

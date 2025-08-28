@@ -16,8 +16,11 @@ path = "src/main.rs"
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-bincode = "2.0.1"
+prost = "0.13"
+prost-types = "0.13"
 uuid = { version = "1.0", features = ["v4"] }
 local-ip-address = "0.6.3"
 thiserror = "1.0"
+
+[build-dependencies]
+prost-build = "0.13"

@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package archsockrust;
+
+// Discovery message for peer announcements and requests
+message DiscoveryMessage {
+  oneof message {
+    PeerAnnouncement announce = 1;
+    PeerRequest request = 2;
+  }
+}
+
+// Peer announcement broadcast
+message PeerAnnouncement {
+  string peer_name = 1;
+  string peer_id = 2;
+  uint32 tcp_port = 3;
+}
+
+// Request for peer announcements
+message PeerRequest {
+  // Empty for now, could add fields for targeted discovery
+}

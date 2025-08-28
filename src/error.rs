@@ -5,11 +5,11 @@ pub enum P2PError {
     #[error("Network error: {0}")]
     Network(#[from] std::io::Error),
     
-    #[error("Serialization encode error: {0}")]
-    SerializationEncode(#[from] bincode::error::EncodeError),
+    #[error("Protobuf encode error: {0}")]
+    ProtobufEncode(#[from] prost::EncodeError),
     
-    #[error("Serialization decode error: {0}")]
-    SerializationDecode(#[from] bincode::error::DecodeError),
+    #[error("Protobuf decode error: {0}")]
+    ProtobufDecode(#[from] prost::DecodeError),
     
     #[error("Peer not found: {peer_id}")]
     PeerNotFound { peer_id: String },

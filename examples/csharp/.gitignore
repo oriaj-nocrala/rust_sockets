@@ -1,0 +1,9 @@
+bin/
+obj/
+received/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb

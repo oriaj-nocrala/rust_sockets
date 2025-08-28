@@ -1,4 +1,4 @@
-use archsockrust::{P2PMessenger, P2PEvent, MessageContent};
+use archsockrust::{P2PMessenger, P2PEvent, message_content};
 use std::env;
 use std::io::{self, Write};
 use tokio::time::{sleep, Duration};
@@ -8,22 +8,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🦀 ArchSockRust CLI - P2P Messenger Testing Tool");
     println!("===============================================");
 
-    // Check for CLI args
+    // Parse CLI args: [name] [tcp_port] [discovery_port]
     let args: Vec<String> = env::args().collect();
-    let name = if args.len() > 1 {
-        args[1].clone()
+    let (name, tcp_port, discovery_port) = if args.len() > 1 {
+        let name = args[1].clone();
+        let tcp_port = args.get(2).and_then(|p| p.parse().ok()).unwrap_or(6969);
+        let discovery_port = args.get(3).and_then(|p| p.parse().ok()).unwrap_or(6968);
+        (name, tcp_port, discovery_port)
     } else {
         print!("Enter your name: ");
         io::stdout().flush()?;
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
-        input.trim().to_string()
+        (input.trim().to_string(), 6969, 6968)
     };
 
-    let mut messenger = P2PMessenger::new(name)?;
+    let mut messenger = P2PMessenger::with_ports(name, tcp_port, discovery_port)?;
     println!("✅ Created messenger with ID: {}", messenger.peer_id());
     println!("📡 Local IP: {}", messenger.get_local_ip());
-    println!("🔍 Discovery port: 6968, TCP port: 6969");
+    println!("🔍 Discovery port: {}, TCP port: {}", discovery_port, tcp_port);
 
     messenger.start().await?;
     println!("🚀 Messenger started! Auto-discovering peers every 5s...");
@@ -88,13 +91,16 @@ fn show_help() {
     println!("\n🆘 Help:");
     println!("This CLI tool helps test the ArchSockRust P2P library.");
     println!("\n🔧 Commands:");
-    println!("• Start with a name: cargo run -- \"Your Name\"");
+    println!("• Basic: cargo run -- \"Your Name\"");
+    println!("• With ports: cargo run -- \"Name\" 7000 7001");
+    println!("• Interactive: cargo run");
     println!("• Discovery runs automatically every 5 seconds");
     println!("• Connect to peers before sending messages");
     println!("• Files are saved to 'recibidos/' directory");
     println!("\n🌐 Network:");
-    println!("• UDP Discovery: port 6968 (broadcast)");
-    println!("• TCP Messages: port 6969 (direct P2P)");
+    println!("• UDP Discovery: configurable port (default 6968)");
+    println!("• TCP Messages: configurable port (default 6969)");
+    println!("• Multiple instances: use different ports");
     println!("• Works on local network without internet");
 }
 
@@ -260,23 +266,27 @@ async fn handle_event(event: P2PEvent, messenger: &P2PMessenger) {
         P2PEvent::MessageReceived(message) => {
             let timestamp = format!("{}s", message.timestamp % 86400); // Simple seconds format
             
-            match &message.content {
-                MessageContent::Text { text } => {
-                    println!("\n💬 [{}] {}: {}", timestamp, message.sender_name, text);
-                }
-                MessageContent::File { filename, .. } => {
-                    let size_kb = message.size() / 1024;
-                    match messenger.save_received_file(&message) {
-                        Ok(path) => {
-                            println!("\n📁 [{}] File from {}: {} ({} KB) -> {}", 
-                                timestamp, message.sender_name, filename, size_kb, path);
-                        }
-                        Err(e) => {
-                            println!("\n❌ Failed to save file {}: {}", filename, e);
+            if let Some(content) = &message.content {
+                match &content.content {
+                    Some(message_content::Content::Text(text_msg)) => {
+                        println!("\n💬 [{}] {}: {}", timestamp, message.sender_name, text_msg.text);
+                    }
+                    Some(message_content::Content::File(file_msg)) => {
+                        let size_kb = file_msg.data.len() / 1024;
+                        match messenger.save_received_file(&message) {
+                            Ok(path) => {
+                                println!("\n📁 [{}] File from {}: {} ({} KB) -> {}", 
+                                    timestamp, message.sender_name, file_msg.filename, size_kb, path);
+                            }
+                            Err(e) => {
+                                println!("\n❌ Failed to save file {}: {}", file_msg.filename, e);
+                            }
                         }
                     }
+                    _ => {
+                        println!("\n📨 [{}] Unknown message type from {}", timestamp, message.sender_name);
+                    }
                 }
-                _ => {}
             }
         }
         P2PEvent::FileTransferStarted { filename, size, .. } => {

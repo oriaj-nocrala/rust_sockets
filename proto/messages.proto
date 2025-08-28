@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package archsockrust;
+
+// Main P2P message wrapper
+message P2PMessage {
+  string id = 1;
+  string sender_id = 2;
+  string sender_name = 3;
+  uint64 timestamp = 4;
+  MessageContent content = 5;
+}
+
+// Message content variants
+message MessageContent {
+  oneof content {
+    TextMessage text = 1;
+    FileMessage file = 2;
+    FileRequest file_request = 3;
+    FileResponse file_response = 4;
+  }
+}
+
+// Text message
+message TextMessage {
+  string text = 1;
+}
+
+// File message with binary data
+message FileMessage {
+  string filename = 1;
+  bytes data = 2;
+}
+
+// File transfer request
+message FileRequest {
+  string filename = 1;
+  uint64 size = 2;
+}
+
+// File transfer response
+message FileResponse {
+  string filename = 1;
+  bool accepted = 2;
+}
+
+// Peer information
+message PeerInfo {
+  string id = 1;
+  string name = 2;
+  string ip = 3;
+  uint32 port = 4;
+  uint64 last_seen = 5;
+}

@@ -1,4 +1,4 @@
-use crate::protocol::{message::Message, PeerInfo};
+use crate::{P2pMessage as Message, PeerInfo};
 use tokio::sync::mpsc;
 
 #[derive(Debug, Clone)]

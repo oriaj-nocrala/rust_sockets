@@ -46,6 +46,10 @@ cargo run --release
 # Run with a name directly
 cargo run --release -- "Alice"
 
+# Run with custom ports (TCP, Discovery)
+cargo run --release -- "Alice" 7000 7001
+cargo run --release -- "Bob" 7002 7003
+
 # Build just the library (without CLI)
 cargo build --lib --release
 
@@ -55,11 +59,15 @@ cargo test
 
 ## Library Usage
 
+### Basic Usage
 ```rust
 use archsockrust::{P2PMessenger, P2PEvent, MessageContent};
 
-// Create messenger
+// Create messenger with default ports (6969 TCP, 6968 UDP)
 let mut messenger = P2PMessenger::new("My Name".to_string())?;
+
+// Or with custom ports
+let mut messenger = P2PMessenger::with_ports("My Name".to_string(), 7000, 7001)?;
 
 // Start discovery and listening
 messenger.start().await?;
@@ -73,6 +81,15 @@ let peers = messenger.discover_peers()?;
 // Connect and send message
 messenger.connect_to_peer(&peers[0]).await?;
 messenger.send_text_message(&peers[0].id, "Hello!".to_string()).await?;
+```
+
+### Multi-Instance Testing
+```rust
+// Instance 1
+let messenger1 = P2PMessenger::with_ports("Alice".to_string(), 7000, 7001)?;
+
+// Instance 2  
+let messenger2 = P2PMessenger::with_ports("Bob".to_string(), 7002, 7003)?;
 ```
 
 ## CLI Testing Tool
@@ -115,3 +132,33 @@ cargo run --release -- "YourName"
 - Supports concurrent connections to multiple peers
 - Built with clean code principles and modular design
 - CLI tool is perfect for testing library functionality during development
+
+## Cross-Language Interoperability
+
+### Current Status
+- **Protocol**: Uses Rust-specific `bincode` serialization
+- **Compatibility**: Works between Rust applications only
+- **Networks**: All peers must use this Rust library
+
+### Future C# Integration Options
+
+1. **Protocol Buffers (Recommended)**
+   - Migrate from `bincode` to Protocol Buffers
+   - Native C# support via Google.Protobuf
+   - Language-agnostic, efficient binary format
+   - Maintains type safety and performance
+
+2. **JSON-RPC over TCP**
+   - Simple HTTP-like protocol
+   - Easy C# integration
+   - Human-readable debugging
+   - Slightly less efficient
+
+3. **C FFI Wrapper**
+   - Export Rust functions as C ABI
+   - Use P/Invoke from C#
+   - Maximum performance
+   - Complex memory management
+
+### Implementation Priority
+Currently optimized for Rust-to-Rust communication. Protocol Buffers migration planned for multi-language support.

@@ -1,6 +1,7 @@
 use crate::error::{P2PError, P2PResult};
 use crate::events::P2PEvent;
-use crate::protocol::{message::Message, PeerInfo};
+use crate::{P2pMessage as Message, PeerInfo};
+use prost::Message as ProstMessage;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -29,7 +30,8 @@ impl PeerConnection {
             });
         }
 
-        let data = message.to_bytes()?;
+        let mut data = Vec::new();
+        message.encode(&mut data)?;
         let size = data.len() as u64;
 
         self.stream.write_all(&size.to_be_bytes()).await?;
@@ -53,7 +55,7 @@ impl PeerConnection {
         let mut buffer = vec![0u8; size];
         self.stream.read_exact(&mut buffer).await?;
 
-        let message = Message::from_bytes(&buffer)?;
+        let message = Message::decode(&buffer[..])?;
         Ok(message)
     }
 
@@ -112,11 +114,16 @@ impl PeerManager {
 
                 match listener.accept().await {
                     Ok((stream, addr)) => {
-                        let peer_info = PeerInfo::new(
-                            "Unknown".to_string(),
-                            addr.ip().to_string(),
-                            addr.port(),
-                        );
+                        let peer_info = PeerInfo {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            name: "Unknown".to_string(),
+                            ip: addr.ip().to_string(),
+                            port: addr.port() as u32,
+                            last_seen: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs(),
+                        };
 
                         let connection = PeerConnection::new(peer_info.clone(), stream);
                         
