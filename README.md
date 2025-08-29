@@ -16,7 +16,8 @@ A modern peer-to-peer messaging library written in Rust for seamless local netwo
 - **Concurrent Connections**: Connect to multiple peers simultaneously
 
 ### 🛠️ **Developer Experience**
-- **Built-in CLI Tool**: Interactive testing and debugging
+- **Modern TUI Interface**: Beautiful terminal UI with ratatui
+- **Traditional CLI Tool**: Menu-driven testing and debugging
 - **Event System**: React to network events in real-time
 - **Clean Architecture**: Modular, async-first design
 - **Comprehensive Logging**: Full visibility into P2P operations
@@ -84,9 +85,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### CLI Testing Tool
+### Testing Tools
 
-The library includes a powerful CLI for testing and development:
+The library includes both modern TUI and traditional CLI for testing and development:
 
 ```bash
 # Clone and build
@@ -94,12 +95,32 @@ git clone https://github.com/oriaj-nocrala/rust_sockets.git
 cd rust_sockets
 cargo build --release
 
-# Run CLI tool
-cargo run --release -- "Alice"
+# Modern TUI (recommended) - Beautiful visual interface
+cargo run --bin archsockrust-tui -- "Alice"
+
+# Traditional CLI - Menu-driven interface
+cargo run --bin archsockrust-cli -- "Alice"
 
 # Or interactive mode
-cargo run --release
+cargo run --bin archsockrust-tui  # Default name: "TUI User"
+cargo run --bin archsockrust-cli  # Prompts for name
 ```
+
+#### 🖥️ **TUI Interface Features**
+- **3-panel layout**: Peers | Messages | Input
+- **Real-time updates**: Live peer discovery and messaging
+- **Keyboard navigation**: Tab/arrows, intuitive shortcuts
+- **Visual feedback**: Color-coded status and message types
+- **Interactive help**: Press `h` for comprehensive guide
+- **Modern experience**: No more menu numbers - direct interaction
+
+#### 📋 **TUI Controls**
+- `Tab/Shift+Tab`: Switch panels
+- `↑/↓`: Select peers  
+- `c`: Connect, `d`: Disconnect, `f`: Send file
+- `h`: Help popup, `q`: Quit
+- `Enter`: Send message (in input panel)
+- `F5`: Force discovery
 
 ## 📖 How to Use
 
@@ -118,7 +139,17 @@ cargo run --release
 - Transfer files with progress tracking
 - Receive real-time notifications
 
-### 4. **CLI Commands**
+### 4. **Interface Options**
+
+#### **TUI (Modern - Recommended)**
+Visual interface with real-time panels:
+- **Left panel**: Live peer list with status indicators
+- **Right panels**: Message history + input field
+- **Keyboard shortcuts**: Direct actions (c/d/f/h/q)
+- **Visual feedback**: Color-coded messages and status
+
+#### **CLI (Traditional)**
+Menu-driven interface:
 - `1`: List discovered peers
 - `2`: List connected peers
 - `3`: Connect to peer
@@ -165,6 +196,8 @@ cargo run --release
 - `uuid` - Unique identifiers
 - `local-ip-address` - Network detection
 - `thiserror` - Error handling
+- `ratatui` - Modern terminal UI framework
+- `crossterm` - Cross-platform terminal control
 
 ### Build Dependencies
 
@@ -199,11 +232,14 @@ brew install protobuf
 
 2. **Test the library**
    ```bash
-   # Terminal 1
-   cargo run --release -- "Alice"
+   # Terminal 1 - Modern TUI
+   cargo run --bin archsockrust-tui -- "Alice"
    
-   # Terminal 2 (different machine or same with different ports)
-   cargo run --release -- "Bob" 7000 7001
+   # Terminal 2 - Different machine or custom ports
+   cargo run --bin archsockrust-tui -- "Bob" 7000 7001
+   
+   # Or use traditional CLI
+   cargo run --bin archsockrust-cli -- "Alice"
    ```
 
 3. **Watch them discover and connect automatically!**
@@ -257,6 +293,32 @@ protoc --python_out=. proto/messages.proto proto/discovery.proto
 # Generate Java bindings
 protoc --java_out=. proto/messages.proto proto/discovery.proto
 ```
+
+## 🖥️ Interface Comparison
+
+| Feature | TUI (Modern) | CLI (Traditional) |
+|---------|-------------|-------------------|
+| **Experience** | Visual, real-time | Menu-driven |
+| **Learning Curve** | Intuitive | Requires memorization |
+| **Peer Discovery** | Live updates | Manual refresh |
+| **Message Display** | Scrollable history | Print to stdout |
+| **Navigation** | Keyboard shortcuts | Number selections |
+| **Status Info** | Always visible | On-demand |
+| **Help System** | Interactive popup | Static text |
+| **Multitasking** | Simultaneous actions | Sequential menu |
+| **Modern Feel** | Native terminal app | Classic CLI tool |
+
+### 💡 **Recommendations**
+
+- **Use TUI for**: Development, testing, demonstrations, daily use
+- **Use CLI for**: Automation, scripting, CI/CD, headless environments
+- **Both share**: Same core functionality, identical P2P protocol, cross-language compatibility
+
+### 📚 **Additional Documentation**
+
+- **[TUI_USAGE.md](TUI_USAGE.md)**: Comprehensive TUI guide with screenshots and troubleshooting
+- **[CLAUDE.md](CLAUDE.md)**: Development instructions and architecture details  
+- **[proto/](proto/)**: Protocol Buffers schemas for cross-language integration
 
 ## 🤝 Contributing
 
