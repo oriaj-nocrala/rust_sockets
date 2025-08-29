@@ -1,0 +1,13 @@
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/bin/Debug/net8.0/runtimes/linux-x64/native/libarchsockrust.so
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/Debug/net8.0/ArchSockRust.Interop.GeneratedMSBuildEditorConfig.editorconfig
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/Debug/net8.0/ArchSockRust.Interop.AssemblyInfoInputs.cache
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/Debug/net8.0/ArchSockRust.Interop.AssemblyInfo.cs
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/Debug/net8.0/ArchSockRust.Interop.csproj.CoreCompileInputs.cache
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/Debug/net8.0/ArchSockRust.Interop.sourcelink.json
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/Debug/net8.0/ArchSockRust.Interop.dll
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/Debug/net8.0/refint/ArchSockRust.Interop.dll
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/Debug/net8.0/ArchSockRust.Interop.pdb
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/bin/Debug/net8.0/ArchSockRust.Interop.deps.json
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/bin/Debug/net8.0/ArchSockRust.Interop.dll
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/bin/Debug/net8.0/ArchSockRust.Interop.pdb
+/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/Debug/net8.0/ref/ArchSockRust.Interop.dll

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>ArchSockRust.Interop</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Authors>ArchSockRust</Authors>
+    <Description>P2P Messaging Library - C# Interop Wrapper</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="runtimes/linux-x64/native/libarchsockrust.so">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -246,12 +246,12 @@ brew install protobuf
 
 4. **Test C# interoperability**
    ```bash
-   # Terminal 1 - Rust
-   cargo run --release -- "RustPeer"
+   # Terminal 1 - Rust TUI
+   cargo run --bin archsockrust-tui -- "RustPeer" 6969 6968
    
-   # Terminal 2 - C#
-   cd examples/csharp
-   dotnet run -- "CSharpPeer"
+   # Terminal 2 - C# app (different ports to avoid conflicts)
+   cd ArchSockRust.NET
+   dotnet run --project ArchSockRust.TestApp -- "CSharpPeer" 7000 7001
    ```
 
 5. **Integrate into your project**
@@ -264,35 +264,91 @@ brew install protobuf
 
 ### C# Integration
 
-This library now supports **full C# interoperability** via Protocol Buffers:
+This library now supports **full C# interoperability** via C FFI wrapper:
 
-- ✅ **Shared Protocol**: Both Rust and C# use same `.proto` schemas
-- ✅ **Binary Compatible**: Native protobuf serialization works across languages  
-- ✅ **Complete Example**: Working C# application in `examples/csharp/`
-- ✅ **Real-time Communication**: C# peers can discover and communicate with Rust peers
+- ✅ **Native C# API**: Complete P/Invoke wrapper with high-level C# classes
+- ✅ **Event System**: C# events for peer discovery, messages, and errors
+- ✅ **Windows Ready**: Perfect foundation for WinUI 3 desktop applications
+- ✅ **Multi-platform**: Works on Windows, Linux, and macOS with .NET
+- ✅ **Real-time Communication**: C# apps can discover and communicate with Rust peers seamlessly
 
-### Supported Languages
+### C# Quick Start
 
-Any language with Protocol Buffers support can interoperate:
+```bash
+# Build the native library
+cargo build --lib --release
 
-- **C#** - Full example provided
+# Run C# test application
+cd ArchSockRust.NET
+dotnet run --project ArchSockRust.TestApp -- "CSharpUser"
+
+# Or with custom ports
+dotnet run --project ArchSockRust.TestApp -- "Alice" 7000 7001
+```
+
+### C# API Usage
+
+```csharp
+using ArchSockRust.Interop;
+
+// Create messenger
+using var messenger = new P2PMessenger("Alice");
+
+// Subscribe to events
+messenger.PeerDiscovered += (s, e) => 
+    Console.WriteLine($"Found: {e.PeerName}");
+    
+messenger.MessageReceived += (s, e) => 
+    Console.WriteLine($"{e.PeerName}: {e.Message}");
+
+// Start and use
+messenger.Start();
+messenger.DiscoverPeers();
+messenger.ConnectToPeer(peerId);
+messenger.SendTextMessage(peerId, "Hello from C#!");
+```
+
+### Architecture Overview
+
+The C# integration uses a layered architecture:
+
+```
+┌─────────────────────┐
+│   WinUI 3 App       │  ← Your Windows desktop app
+├─────────────────────┤
+│  C# High-Level API  │  ← ArchSockRust.Interop (events, async)
+├─────────────────────┤  
+│   P/Invoke Layer    │  ← Native function calls
+├─────────────────────┤
+│   C FFI Exports     │  ← src/ffi.rs (C-compatible)
+├─────────────────────┤
+│  Rust Core Library  │  ← P2PMessenger, networking
+└─────────────────────┘
+```
+
+### File Structure
+
+```
+ArchSockRust.NET/
+├── ArchSockRust.sln                    # Visual Studio solution
+├── ArchSockRust.Interop/              # P/Invoke wrapper library
+│   ├── P2PMessenger.cs                 # High-level C# API
+│   ├── NativeMethods.cs                # P/Invoke declarations  
+│   └── P2PEventArgs.cs                 # Event system
+└── ArchSockRust.TestApp/               # Console test application
+    └── Program.cs                      # Interactive test CLI
+```
+
+### Extension to Other Languages
+
+The Protocol Buffers foundation allows expansion to other languages:
+
 - **Python** - Generate bindings with `protoc --python_out`
-- **Java** - Generate bindings with `protoc --java_out`
+- **Java** - Generate bindings with `protoc --java_out` 
 - **Go** - Generate bindings with `protoc --go_out`
 - **JavaScript/TypeScript** - Generate bindings with `protoc --js_out`
 
-### Creating Language Bindings
-
-```bash
-# Generate C# bindings
-protoc --csharp_out=. proto/messages.proto proto/discovery.proto
-
-# Generate Python bindings  
-protoc --python_out=. proto/messages.proto proto/discovery.proto
-
-# Generate Java bindings
-protoc --java_out=. proto/messages.proto proto/discovery.proto
-```
+Each language can implement its own FFI wrapper or direct protocol implementation.
 
 ## 🖥️ Interface Comparison
 
@@ -318,6 +374,7 @@ protoc --java_out=. proto/messages.proto proto/discovery.proto
 
 - **[TUI_USAGE.md](TUI_USAGE.md)**: Comprehensive TUI guide with screenshots and troubleshooting
 - **[CLAUDE.md](CLAUDE.md)**: Development instructions and architecture details  
+- **[ArchSockRust.NET/README.md](ArchSockRust.NET/README.md)**: Complete C# wrapper documentation and usage guide
 - **[proto/](proto/)**: Protocol Buffers schemas for cross-language integration
 
 ## 🤝 Contributing
@@ -325,8 +382,9 @@ protoc --java_out=. proto/messages.proto proto/discovery.proto
 Contributions welcome! This library is designed for:
 - **Local network messaging apps** - Chat applications for LANs
 - **P2P file sharing tools** - Direct file transfers without servers  
-- **Distributed applications** - Cross-language P2P networks
-- **Real-time collaboration software** - Multi-platform team tools
+- **Cross-platform desktop applications** - Windows (C#/WinUI), Linux/macOS (Rust/TUI)
+- **Distributed applications** - Multi-language P2P networks
+- **Real-time collaboration software** - Team tools with native performance
 
 ## 📄 License
 

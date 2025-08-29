@@ -1,6 +1,5 @@
 use crate::{P2PMessenger, P2PEvent, message_content};
 use std::collections::VecDeque;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -64,30 +63,12 @@ impl AppState {
         let message = ChatMessage {
             sender: "System".to_string(),
             content,
-            timestamp: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            timestamp: crate::get_current_timestamp(),
             message_type: MessageType::System,
         };
         self.add_message(message);
     }
 
-    pub fn format_timestamp(timestamp: u64) -> String {
-        use chrono::{Local, TimeZone};
-        
-        // Convert Unix timestamp to local time using chrono
-        match Local.timestamp_opt(timestamp as i64, 0) {
-            chrono::LocalResult::Single(datetime) => {
-                // Format as HH:MM:SS in local timezone
-                datetime.format("%H:%M:%S").to_string()
-            }
-            _ => {
-                // Fallback if timestamp is invalid
-                "??:??:??".to_string()
-            }
-        }
-    }
 
     pub async fn refresh_peers(&mut self) {
         // Update discovered peers
@@ -189,10 +170,7 @@ impl AppState {
                         let message = ChatMessage {
                             sender: format!("{} (You)", self.messenger.peer_name()),
                             content: text.clone(),
-                            timestamp: SystemTime::now()
-                                .duration_since(UNIX_EPOCH)
-                                .unwrap()
-                                .as_secs(),
+                            timestamp: crate::get_current_timestamp(),
                             message_type: MessageType::Text,
                         };
                         self.add_message(message);

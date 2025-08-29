@@ -1,5 +1,5 @@
 use archsockrust::app::{AppState, AppEventHandler, ChatMessage, MessageType, PeerStatus};
-use archsockrust::P2PMessenger;
+use archsockrust::{P2PMessenger, format_timestamp};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
@@ -18,7 +18,6 @@ use ratatui::{
 use std::env;
 use std::io;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
@@ -387,7 +386,7 @@ fn draw_messages_panel(f: &mut Frame, area: Rect, tui_state: &TuiState) {
         .messages
         .iter()
         .map(|msg| {
-            let timestamp = archsockrust::app::AppState::format_timestamp(msg.timestamp);
+            let timestamp = format_timestamp(msg.timestamp);
             let content = match &msg.message_type {
                 archsockrust::app::MessageType::Text => {
                     format!("[{}] {}: {}", timestamp, msg.sender, msg.content)
@@ -618,10 +617,7 @@ async fn send_message(tui_state: &mut TuiState) {
                     let chat_message = ChatMessage {
                         sender: format!("{} (You)", app_state.messenger.peer_name()),
                         content: message.clone(),
-                        timestamp: SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs(),
+                        timestamp: archsockrust::get_current_timestamp(),
                         message_type: MessageType::Text,
                     };
                     app_state.add_message(chat_message);

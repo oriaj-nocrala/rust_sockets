@@ -1,0 +1,118 @@
+{
+  "format": 1,
+  "restore": {
+    "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.TestApp/ArchSockRust.TestApp.csproj": {}
+  },
+  "projects": {
+    "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/ArchSockRust.Interop.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/ArchSockRust.Interop.csproj",
+        "projectName": "ArchSockRust.Interop",
+        "projectPath": "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/ArchSockRust.Interop.csproj",
+        "packagesPath": "/home/oriaj/.nuget/packages/",
+        "outputPath": "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/oriaj/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.119/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.TestApp/ArchSockRust.TestApp.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.TestApp/ArchSockRust.TestApp.csproj",
+        "projectName": "ArchSockRust.TestApp",
+        "projectPath": "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.TestApp/ArchSockRust.TestApp.csproj",
+        "packagesPath": "/home/oriaj/.nuget/packages/",
+        "outputPath": "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.TestApp/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/oriaj/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/ArchSockRust.Interop.csproj": {
+                "projectPath": "/home/oriaj/Prog/Rust/Sockets/archsockrust/ArchSockRust.NET/ArchSockRust.Interop/ArchSockRust.Interop.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.119/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

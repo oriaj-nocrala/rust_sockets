@@ -5,6 +5,7 @@ pub mod protocol;
 pub mod error;
 pub mod app;
 pub mod cli;
+pub mod ffi;
 
 use crate::discovery::DiscoveryService;
 use crate::events::EventManager;
@@ -95,10 +96,7 @@ impl P2PMessenger {
             id: uuid::Uuid::new_v4().to_string(),
             sender_id: self.peer_id.clone(),
             sender_name: self.peer_name.clone(),
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            timestamp: get_current_timestamp(),
             content: Some(MessageContent {
                 content: Some(message_content::Content::Text(TextMessage { text })),
             }),
@@ -126,10 +124,7 @@ impl P2PMessenger {
             id: uuid::Uuid::new_v4().to_string(),
             sender_id: self.peer_id.clone(),
             sender_name: self.peer_name.clone(),
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            timestamp: get_current_timestamp(),
             content: Some(MessageContent {
                 content: Some(message_content::Content::File(FileMessage { 
                     filename: filename.clone(), 
@@ -207,6 +202,30 @@ impl P2PMessenger {
 
     pub fn cleanup_stale_peers(&self) {
         self.discovery.cleanup_stale_peers(60);
+    }
+}
+
+// Utility functions for timestamp handling
+pub fn get_current_timestamp() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
+
+pub fn format_timestamp(timestamp: u64) -> String {
+    use chrono::{Local, TimeZone};
+    
+    // Convert Unix timestamp to local time using chrono
+    match Local.timestamp_opt(timestamp as i64, 0) {
+        chrono::LocalResult::Single(datetime) => {
+            // Format as HH:MM:SS in local timezone
+            datetime.format("%H:%M:%S").to_string()
+        }
+        _ => {
+            // Fallback if timestamp is invalid
+            "??:??:??".to_string()
+        }
     }
 }
 

@@ -9,6 +9,7 @@ authors = ["Your Name <your.email@example.com>"]
 [lib]
 name = "archsockrust"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]  # cdylib for C# interop, rlib for Rust binaries
 
 [[bin]]
 name = "archsockrust-cli"
