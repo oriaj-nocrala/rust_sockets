@@ -74,11 +74,19 @@ impl AppState {
     }
 
     pub fn format_timestamp(timestamp: u64) -> String {
-        let time = timestamp % 86400; // Seconds in a day
-        let hours = time / 3600;
-        let minutes = (time % 3600) / 60;
-        let seconds = time % 60;
-        format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+        use chrono::{Local, TimeZone};
+        
+        // Convert Unix timestamp to local time using chrono
+        match Local.timestamp_opt(timestamp as i64, 0) {
+            chrono::LocalResult::Single(datetime) => {
+                // Format as HH:MM:SS in local timezone
+                datetime.format("%H:%M:%S").to_string()
+            }
+            _ => {
+                // Fallback if timestamp is invalid
+                "??:??:??".to_string()
+            }
+        }
     }
 
     pub async fn refresh_peers(&mut self) {

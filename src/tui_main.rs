@@ -1,4 +1,4 @@
-use archsockrust::app::{AppState, AppEventHandler};
+use archsockrust::app::{AppState, AppEventHandler, ChatMessage, MessageType, PeerStatus};
 use archsockrust::P2PMessenger;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
@@ -18,6 +18,7 @@ use ratatui::{
 use std::env;
 use std::io;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
@@ -41,7 +42,8 @@ struct TuiState {
 impl TuiState {
     fn new(app_state: Arc<Mutex<AppState>>) -> Self {
         let mut peer_list_state = ListState::default();
-        peer_list_state.select(Some(0));
+        // Don't select anything initially - will be set properly in first update
+        peer_list_state.select(None);
 
         Self {
             app_state,
@@ -51,6 +53,24 @@ impl TuiState {
             status_message: "Ready - Press 'h' for help".to_string(),
             should_quit: false,
             show_help: false,
+        }
+    }
+    
+    // Helper method to ensure selection is always on a valid peer
+    async fn ensure_valid_selection(&mut self) {
+        let app_state = self.app_state.lock().await;
+        let peer_indices = get_visual_peer_indices(&app_state);
+        
+        if !peer_indices.is_empty() {
+            let current = self.peer_list_state.selected();
+            
+            // If no selection or invalid selection, select first peer
+            if current.is_none() || !peer_indices.contains(&current.unwrap()) {
+                self.peer_list_state.select(Some(peer_indices[0]));
+            }
+        } else {
+            // No peers available, clear selection
+            self.peer_list_state.select(None);
         }
     }
 
@@ -72,23 +92,37 @@ impl TuiState {
 
     async fn next_peer(&mut self) {
         let app_state = self.app_state.lock().await;
-        let peer_count = app_state.discovered_peers.len() + app_state.connected_peers.len();
+        let peer_indices = get_visual_peer_indices(&app_state);
         
-        if peer_count > 0 {
+        if !peer_indices.is_empty() {
             let current = self.peer_list_state.selected().unwrap_or(0);
-            let next = if current >= peer_count - 1 { 0 } else { current + 1 };
-            self.peer_list_state.select(Some(next));
+            
+            // Find current position in peer indices or start from first peer
+            let current_pos = peer_indices.iter().position(|&i| i == current)
+                .unwrap_or(peer_indices.len()); // If not found, wrap to start
+            
+            let next_pos = (current_pos + 1) % peer_indices.len();
+            self.peer_list_state.select(Some(peer_indices[next_pos]));
         }
     }
 
     async fn prev_peer(&mut self) {
         let app_state = self.app_state.lock().await;
-        let peer_count = app_state.discovered_peers.len() + app_state.connected_peers.len();
+        let peer_indices = get_visual_peer_indices(&app_state);
         
-        if peer_count > 0 {
+        if !peer_indices.is_empty() {
             let current = self.peer_list_state.selected().unwrap_or(0);
-            let prev = if current == 0 { peer_count - 1 } else { current - 1 };
-            self.peer_list_state.select(Some(prev));
+            
+            // Find current position in peer indices or start from last peer
+            let current_pos = peer_indices.iter().position(|&i| i == current)
+                .unwrap_or(0); // If not found, start from beginning
+            
+            let prev_pos = if current_pos == 0 { 
+                peer_indices.len() - 1 
+            } else { 
+                current_pos - 1 
+            };
+            self.peer_list_state.select(Some(peer_indices[prev_pos]));
         }
     }
 }
@@ -186,6 +220,9 @@ async fn run_tui<B: Backend>(
     tui_state: &mut TuiState,
 ) -> io::Result<()> {
     loop {
+        // Ensure selection is always on a valid peer
+        tui_state.ensure_valid_selection().await;
+        
         terminal.draw(|f| ui(f, tui_state))?;
 
         if tui_state.should_quit {
@@ -537,24 +574,32 @@ async fn handle_input_key(key: KeyCode, tui_state: &mut TuiState) {
 
 async fn connect_to_selected_peer(tui_state: &mut TuiState) {
     let selected = tui_state.peer_list_state.selected();
-    if let Some(index) = selected {
+    if let Some(visual_index) = selected {
         let mut app_state = tui_state.app_state.lock().await;
-        app_state.selected_peer = Some(index);
-        match app_state.connect_to_selected_peer().await {
-            Ok(msg) => tui_state.status_message = msg,
-            Err(e) => tui_state.status_message = e,
+        if let Some(real_index) = map_visual_to_real_peer_index(visual_index, &app_state) {
+            app_state.selected_peer = Some(real_index);
+            match app_state.connect_to_selected_peer().await {
+                Ok(msg) => tui_state.status_message = msg,
+                Err(e) => tui_state.status_message = e,
+            }
+        } else {
+            tui_state.status_message = "Invalid selection".to_string();
         }
     }
 }
 
 async fn disconnect_selected_peer(tui_state: &mut TuiState) {
     let selected = tui_state.peer_list_state.selected();
-    if let Some(index) = selected {
+    if let Some(visual_index) = selected {
         let mut app_state = tui_state.app_state.lock().await;
-        app_state.selected_peer = Some(index);
-        match app_state.disconnect_from_selected_peer().await {
-            Ok(msg) => tui_state.status_message = msg,
-            Err(e) => tui_state.status_message = e,
+        if let Some(real_index) = map_visual_to_real_peer_index(visual_index, &app_state) {
+            app_state.selected_peer = Some(real_index);
+            match app_state.disconnect_from_selected_peer().await {
+                Ok(msg) => tui_state.status_message = msg,
+                Err(e) => tui_state.status_message = e,
+            }
+        } else {
+            tui_state.status_message = "Invalid selection".to_string();
         }
     }
 }
@@ -564,12 +609,28 @@ async fn send_message(tui_state: &mut TuiState) {
     tui_state.input_buffer.clear();
 
     let selected = tui_state.peer_list_state.selected();
-    if let Some(index) = selected {
+    if let Some(visual_index) = selected {
         let mut app_state = tui_state.app_state.lock().await;
-        app_state.selected_peer = Some(index);
-        match app_state.send_text_message(message).await {
-            Ok(msg) => tui_state.status_message = msg,
-            Err(e) => tui_state.status_message = e,
+        if let Some(peer_info) = get_peer_from_visual_index(visual_index, &app_state) {
+            // Send message directly using peer ID instead of relying on selected_peer index
+            match app_state.messenger.send_text_message(&peer_info.id, message.clone()).await {
+                Ok(()) => {
+                    let chat_message = ChatMessage {
+                        sender: format!("{} (You)", app_state.messenger.peer_name()),
+                        content: message.clone(),
+                        timestamp: SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs(),
+                        message_type: MessageType::Text,
+                    };
+                    app_state.add_message(chat_message);
+                    tui_state.status_message = format!("Message sent to {}", peer_info.name);
+                }
+                Err(e) => tui_state.status_message = format!("Failed to send message: {}", e),
+            }
+        } else {
+            tui_state.status_message = "Invalid selection".to_string();
         }
     } else {
         tui_state.status_message = "No peer selected".to_string();
@@ -582,12 +643,16 @@ async fn send_file_to_selected_peer(tui_state: &mut TuiState) {
     let file_path = "test.txt".to_string();
     
     let selected = tui_state.peer_list_state.selected();
-    if let Some(index) = selected {
+    if let Some(visual_index) = selected {
         let mut app_state = tui_state.app_state.lock().await;
-        app_state.selected_peer = Some(index);
-        match app_state.send_file(file_path).await {
-            Ok(msg) => tui_state.status_message = msg,
-            Err(e) => tui_state.status_message = e,
+        if let Some(real_index) = map_visual_to_real_peer_index(visual_index, &app_state) {
+            app_state.selected_peer = Some(real_index);
+            match app_state.send_file(file_path).await {
+                Ok(msg) => tui_state.status_message = msg,
+                Err(e) => tui_state.status_message = e,
+            }
+        } else {
+            tui_state.status_message = "Invalid selection".to_string();
         }
     } else {
         tui_state.status_message = "No peer selected".to_string();
@@ -600,4 +665,132 @@ async fn force_discovery(tui_state: &mut TuiState) {
         Ok(msg) => tui_state.status_message = msg,
         Err(e) => tui_state.status_message = e,
     }
+}
+
+// Maps visual list index to real peer index in the combined discovered+connected peers
+fn map_visual_to_real_peer_index(visual_index: usize, app_state: &AppState) -> Option<usize> {
+    let mut current_index = 0;
+    let mut peer_count = 0;
+    
+    // Process discovered peers section
+    if !app_state.discovered_peers.is_empty() {
+        // Skip "🔍 Discovered Peers:" header
+        if visual_index == current_index {
+            return None; // Header selected, not a peer
+        }
+        current_index += 1;
+        
+        // Check if selection is in discovered peers
+        for i in 0..app_state.discovered_peers.len() {
+            if visual_index == current_index {
+                return Some(peer_count + i); // Return index in combined list
+            }
+            current_index += 1;
+        }
+        peer_count += app_state.discovered_peers.len();
+    }
+    
+    // Process connected peers section
+    if !app_state.connected_peers.is_empty() {
+        // Skip empty line separator if we had discovered peers
+        if !app_state.discovered_peers.is_empty() {
+            if visual_index == current_index {
+                return None; // Empty line selected
+            }
+            current_index += 1;
+        }
+        
+        // Skip "🔗 Connected Peers:" header
+        if visual_index == current_index {
+            return None; // Header selected, not a peer
+        }
+        current_index += 1;
+        
+        // Check if selection is in connected peers
+        for i in 0..app_state.connected_peers.len() {
+            if visual_index == current_index {
+                return Some(peer_count + i); // Return index in combined list
+            }
+            current_index += 1;
+        }
+    }
+    
+    None // Invalid selection
+}
+
+// Returns the visual indices of only the real peers (skipping headers and separators)
+fn get_visual_peer_indices(app_state: &AppState) -> Vec<usize> {
+    let mut peer_indices = Vec::new();
+    let mut current_index = 0;
+    
+    // Process discovered peers section
+    if !app_state.discovered_peers.is_empty() {
+        // Skip "🔍 Discovered Peers:" header
+        current_index += 1;
+        
+        // Add discovered peer indices
+        for _ in 0..app_state.discovered_peers.len() {
+            peer_indices.push(current_index);
+            current_index += 1;
+        }
+    }
+    
+    // Process connected peers section
+    if !app_state.connected_peers.is_empty() {
+        // Skip empty line separator if we had discovered peers
+        if !app_state.discovered_peers.is_empty() {
+            current_index += 1;
+        }
+        
+        // Skip "🔗 Connected Peers:" header
+        current_index += 1;
+        
+        // Add connected peer indices
+        for _ in 0..app_state.connected_peers.len() {
+            peer_indices.push(current_index);
+            current_index += 1;
+        }
+    }
+    
+    peer_indices
+}
+
+// Returns the actual PeerInfo from visual index, or None if invalid
+fn get_peer_from_visual_index(visual_index: usize, app_state: &AppState) -> Option<PeerStatus> {
+    let mut current_index = 0;
+    
+    // Process discovered peers section
+    if !app_state.discovered_peers.is_empty() {
+        // Skip "🔍 Discovered Peers:" header
+        current_index += 1;
+        
+        // Check discovered peers
+        for peer in &app_state.discovered_peers {
+            if visual_index == current_index {
+                return Some(peer.clone());
+            }
+            current_index += 1;
+        }
+    }
+    
+    // Process connected peers section
+    if !app_state.connected_peers.is_empty() {
+        // Skip empty line separator if we had discovered peers
+        if !app_state.discovered_peers.is_empty() {
+            current_index += 1;
+        }
+        
+        // Skip "🔗 Connected Peers:" header
+        current_index += 1;
+        
+        // Check connected peers
+        for peer in &app_state.connected_peers {
+            if visual_index == current_index {
+                return Some(peer.clone());
+            }
+            current_index += 1;
+        }
+    }
+    
+    None
 }

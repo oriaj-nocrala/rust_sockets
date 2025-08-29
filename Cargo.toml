@@ -28,6 +28,8 @@ thiserror = "1.0"
 # TUI dependencies
 ratatui = "0.28"
 crossterm = "0.28"
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
 
 [build-dependencies]
 prost-build = "0.13"
