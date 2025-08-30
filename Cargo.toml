@@ -25,6 +25,7 @@ prost = "0.13"
 prost-types = "0.13"
 uuid = { version = "1.0", features = ["v4"] }
 local-ip-address = "0.6.3"
+if-addrs = "0.12"
 thiserror = "1.0"
 # TUI dependencies
 ratatui = "0.28"

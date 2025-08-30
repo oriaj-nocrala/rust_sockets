@@ -10,6 +10,8 @@ pub mod ffi;
 use crate::discovery::DiscoveryService;
 use crate::events::EventManager;
 use crate::peer::PeerManager;
+
+// Note: modules are already declared as pub mod above
 // Include generated protobuf code
 include!(concat!(env!("OUT_DIR"), "/archsockrust.rs"));
 use crate::error::{P2PError, P2PResult};
@@ -33,10 +35,13 @@ impl P2PMessenger {
     }
 
     pub fn with_ports(peer_name: String, tcp_port: u16, discovery_port: u16) -> P2PResult<Self> {
-        let discovery = DiscoveryService::new(peer_name.clone(), tcp_port, discovery_port)?;
+        let mut discovery = DiscoveryService::new(peer_name.clone(), tcp_port, discovery_port)?;
         
         let event_manager = EventManager::new();
         let event_sender = event_manager.get_sender();
+        
+        // Give discovery service access to event sender
+        discovery.set_event_sender(event_sender.clone());
         
         let peer_manager = PeerManager::new(
             event_sender,
